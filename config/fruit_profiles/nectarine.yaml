@@ -1,0 +1,6 @@
+fruit_type: "nectarine"
+classifier:
+  model_file: "nectarine_classifier.pt"
+pressure:
+  contact_threshold: 0.12
+  max_force_threshold: 0.65

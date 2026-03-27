@@ -1,0 +1,6 @@
+# Lemon profile — overrides default.yaml values
+fruit_type: "lemon"
+classifier:
+  model_file: "lemon_classifier.pt"
+pressure:
+  contact_threshold: 0.20     # Lemons are firm — need higher threshold

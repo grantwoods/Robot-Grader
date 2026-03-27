@@ -1,0 +1,5 @@
+fruit_type: "grapefruit"
+classifier:
+  model_file: "grapefruit_classifier.pt"
+pressure:
+  contact_threshold: 0.18

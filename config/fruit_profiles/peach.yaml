@@ -1,0 +1,6 @@
+fruit_type: "peach"
+classifier:
+  model_file: "peach_classifier.pt"
+pressure:
+  contact_threshold: 0.10     # Peaches are soft — lower threshold to avoid bruising
+  max_force_threshold: 0.60

@@ -1,0 +1,74 @@
+# Wildwood Robot Grader — Default Configuration
+
+system:
+  mock_mode: true           # Set false when running on real hardware
+  shadow_mode: false         # Classify and log but don't physically sort
+  log_dir: "logs"
+
+fruit_type: "lemon"          # Active fruit type — loads matching profile + model
+
+cameras:
+  overhead:
+    device_index: 0
+    resolution: [1280, 720]
+    fps: 30
+  arm_head:
+    device_index: 1
+    resolution: [1280, 720]
+    fps: 30
+  bottom:
+    device_index: 2
+    resolution: [1280, 720]
+    fps: 30
+  model_input_size: [640, 640]
+
+calibration:
+  # 3x3 homography matrix mapping overhead camera pixels to belt XY (mm)
+  # Set during calibration — identity matrix as placeholder
+  homography:
+    - [1.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0]
+    - [0.0, 0.0, 1.0]
+
+conveyor:
+  speed_mm_per_sec: 50.0     # Belt speed (operator adjustable)
+  direction: "x"             # Primary axis of belt movement
+
+arm:
+  can_interface: "can0"
+  can_bitrate: 500000
+  motor_ids: [1, 2, 3, 4, 5, 6]  # CAN IDs for 6 joints
+  max_velocity: 100.0        # degrees/sec per joint
+  max_acceleration: 200.0    # degrees/sec^2 per joint
+  safe_z_height: 150.0       # mm above belt — clearance for tallest fruit
+  descent_speed: 20.0        # mm/sec during pressure-guided descent
+  workspace_bounds:
+    x: [-300.0, 300.0]
+    y: [-300.0, 300.0]
+    z: [0.0, 400.0]
+  waypoints:
+    home: [0.0, 200.0, 150.0]
+    inspect: [100.0, -150.0, 120.0]
+    chute_a: [-150.0, -200.0, 100.0]   # Trash/Rot
+    chute_b: [0.0, -200.0, 100.0]      # Choice/Juice
+    chute_c: [150.0, -200.0, 100.0]    # Fancy
+  pick_zone:
+    x_range: [-100.0, 100.0]
+    y_range: [150.0, 250.0]
+
+pressure:
+  adc_address: 0x48           # ADS1115 I2C address
+  adc_channel: 0
+  contact_threshold: 0.15     # Normalized 0-1, triggers contact detection
+  max_force_threshold: 0.85   # Emergency stop if exceeded
+  sample_rate_hz: 100
+
+vacuum:
+  gpio_pin: 18
+  grip_confirm_delay_sec: 0.15
+  release_confirm_delay_sec: 0.10
+  timeout_sec: 10.0
+
+classifier:
+  model_dir: "models"
+  confidence_threshold: 0.5   # Minimum confidence to trust classification

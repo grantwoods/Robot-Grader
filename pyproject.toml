@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robot-grader"
+version = "0.1.0"
+description = "Autonomous robot arm fruit sorting system for Wildwood Packing and Cooling"
+requires-python = ">=3.10"
+dependencies = [
+    "opencv-python-headless>=4.8",
+    "ultralytics>=8.1",
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+    "python-can>=4.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+jetson = []  # tensorrt and Jetson.GPIO installed via JetPack
+
+[project.scripts]
+grader = "grader.orchestrator:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

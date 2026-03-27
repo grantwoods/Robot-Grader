@@ -1,0 +1,5 @@
+fruit_type: "orange"
+classifier:
+  model_file: "orange_classifier.pt"
+pressure:
+  contact_threshold: 0.18

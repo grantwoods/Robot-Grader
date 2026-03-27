@@ -1,0 +1,6 @@
+fruit_type: "plum"
+classifier:
+  model_file: "plum_classifier.pt"
+pressure:
+  contact_threshold: 0.12
+  max_force_threshold: 0.65

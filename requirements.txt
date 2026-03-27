@@ -1,0 +1,6 @@
+opencv-python-headless>=4.8
+ultralytics>=8.1
+numpy>=1.24
+pyyaml>=6.0
+python-can>=4.3
+pytest>=7.0
