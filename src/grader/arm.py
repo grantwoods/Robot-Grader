@@ -1,8 +1,9 @@
 """Arm controller for the robot fruit sorting system.
 
-Controls an Arctos 6-DOF robot arm via CAN bus with MKS SERVO42D stepper
-motors.  Provides inverse kinematics (placeholder), waypoint navigation,
-pressure-based descent, and workspace-bounds validation.
+Controls an Arctos robot arm (3-axis XYZ only) via CAN bus with MKS SERVO42D
+stepper motors.  Joints 4-6 are removed and replaced with a fixed 8-inch
+(~203 mm) suction tube.  Provides waypoint navigation, pressure-based descent,
+and workspace-bounds validation.
 """
 
 from __future__ import annotations
@@ -20,7 +21,16 @@ logger = logging.getLogger(__name__)
 
 
 class ArmController:
-    """High-level controller for the Arctos 6-DOF robot arm."""
+    """High-level controller for the Arctos 3-axis (XYZ) robot arm.
+
+    Joints 4-6 are removed; a fixed 8-inch (~203 mm) suction tube is mounted
+    in their place.  The tube length is accounted for as a Z offset so that
+    waypoint Z values represent the height of the suction cup tip, not the
+    arm flange.
+    """
+
+    # Length of the suction tube mounted in place of joints 4-6 (mm).
+    SUCTION_TUBE_LENGTH: float = 203.0  # 8 inches
 
     def __init__(self, config: dict, mock_mode: bool = False) -> None:
         self._mock_mode = mock_mode
@@ -32,6 +42,9 @@ class ArmController:
         self._max_acceleration: float = float(config["max_acceleration"])
         self._safe_z_height: float = float(config["safe_z_height"])
         self._descent_speed: float = float(config["descent_speed"])
+        self._tube_length: float = float(
+            config.get("suction_tube_length", self.SUCTION_TUBE_LENGTH)
+        )
 
         bounds = config["workspace_bounds"]
         self._bounds_x: tuple[float, float] = tuple(bounds["x"])
@@ -250,23 +263,25 @@ class ArmController:
 
     # -- Inverse kinematics ----------------------------------------------------
 
-    @staticmethod
-    def _ik_solve(x: float, y: float, z: float) -> list[float]:
-        """Compute joint angles for a target XYZ position.
+    def _ik_solve(self, x: float, y: float, z: float) -> list[float]:
+        """Compute joint positions for a target XYZ position.
+
+        The arm uses only 3 axes (X, Y, Z).  The suction tube hangs straight
+        down from the Z carriage, so the arm's Z motor must target
+        ``z + tube_length`` to place the cup tip at the requested *z*.
 
         .. todo::
-            Replace this placeholder with real inverse kinematics using the
-            Arctos DH (Denavit-Hartenberg) parameters once the arm hardware
-            is available.
+            Replace this placeholder with real IK using the Arctos DH
+            parameters once the arm hardware is available.
 
         Returns
         -------
         list[float]
-            Six joint angles in radians.  Currently returns ``[x, y, z, 0, 0, 0]``
-            as a placeholder.
+            Three motor positions ``[x, y, z_motor]``.
         """
         # TODO: Implement real IK with Arctos DH parameters when hardware is available.
-        return [x, y, z, 0.0, 0.0, 0.0]
+        z_motor = z + self._tube_length
+        return [x, y, z_motor]
 
     def _send_joint_positions(self, angles: list[float]) -> None:
         """Send position commands to each motor over CAN.
