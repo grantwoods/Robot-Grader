@@ -13,6 +13,7 @@ dependencies = [
     "numpy>=1.24",
     "pyyaml>=6.0",
     "python-can>=4.3",
+    "flask>=3.0",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +22,7 @@ jetson = []  # tensorrt and Jetson.GPIO installed via JetPack
 
 [project.scripts]
 grader = "grader.orchestrator:main"
+grader-dashboard = "grader.dashboard:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

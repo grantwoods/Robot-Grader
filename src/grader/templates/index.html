@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robot Grader Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #e0e0e0; font-family: system-ui, sans-serif; padding: 16px; }
+  h1 { font-size: 1.4rem; margin-bottom: 16px; color: #e94560; }
+  h2 { font-size: 1rem; margin-bottom: 8px; color: #0f3460; background: #e94560; display: inline-block; padding: 4px 12px; border-radius: 4px; }
+  .cameras { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .cam-card { background: #16213e; border-radius: 8px; overflow: hidden; }
+  .cam-card .label { padding: 8px 12px; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em; }
+  .cam-card img { width: 100%; display: block; background: #0f0f0f; }
+  .settings-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .quick-settings { background: #16213e; border-radius: 8px; padding: 16px; }
+  .quick-settings h2 { margin-bottom: 12px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 0.8rem; color: #a0a0b0; margin-bottom: 4px; }
+  .field input, .field select { width: 100%; padding: 8px; background: #0f3460; border: 1px solid #333; color: #e0e0e0; border-radius: 4px; font-size: 0.9rem; }
+  .field input:focus, .field select:focus { outline: none; border-color: #e94560; }
+  .yaml-editor { background: #16213e; border-radius: 8px; padding: 16px; }
+  .yaml-editor textarea { width: 100%; height: 400px; background: #0a0a1a; color: #c8d6e5; border: 1px solid #333; border-radius: 4px; padding: 12px; font-family: 'Courier New', monospace; font-size: 0.85rem; resize: vertical; tab-size: 2; }
+  .yaml-editor textarea:focus { outline: none; border-color: #e94560; }
+  .btn { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+  .btn-save { background: #e94560; color: white; }
+  .btn-save:hover { background: #c73e54; }
+  .btn-reload { background: #0f3460; color: white; margin-left: 8px; }
+  .btn-reload:hover { background: #1a4a7a; }
+  .btn-row { margin-top: 12px; display: flex; align-items: center; }
+  .status { margin-left: 12px; font-size: 0.85rem; }
+  .status.ok { color: #4caf50; }
+  .status.err { color: #f44336; }
+  @media (max-width: 800px) { .settings-panel { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>Robot Grader Dashboard</h1>
+
+<!-- Camera Feeds -->
+<div class="cameras">
+  {% for cam in cameras %}
+  <div class="cam-card">
+    <div class="label">{{ cam | replace("_", " ") }}</div>
+    <img src="/video_feed/{{ cam }}" alt="{{ cam }} feed">
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Settings -->
+<div class="settings-panel">
+
+  <!-- Quick Settings -->
+  <div class="quick-settings">
+    <h2>Quick Settings</h2>
+
+    <div class="field">
+      <label>Mock Mode</label>
+      <select id="qs-mock-mode" onchange="saveField('system.mock_mode', this.value === 'true')">
+        <option value="true">On (no hardware)</option>
+        <option value="false">Off (real hardware)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Shadow Mode</label>
+      <select id="qs-shadow-mode" onchange="saveField('system.shadow_mode', this.value === 'true')">
+        <option value="false">Off (sort physically)</option>
+        <option value="true">On (classify only)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Fruit Type</label>
+      <select id="qs-fruit-type" onchange="saveField('fruit_type', this.value)">
+        <option value="lemon">Lemon</option>
+        <option value="orange">Orange</option>
+        <option value="grapefruit">Grapefruit</option>
+        <option value="peach">Peach</option>
+        <option value="nectarine">Nectarine</option>
+        <option value="plum">Plum</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Conveyor Speed (mm/s)</label>
+      <input type="number" id="qs-belt-speed" step="1" min="0"
+             onchange="saveField('conveyor.speed_mm_per_sec', parseFloat(this.value))">
+    </div>
+
+    <div class="field">
+      <label>Arm Max Velocity (deg/s)</label>
+      <input type="number" id="qs-arm-vel" step="5" min="0"
+             onchange="saveField('arm.max_velocity', parseFloat(this.value))">
+    </div>
+
+    <div class="field">
+      <label>Arm Descent Speed (mm/s)</label>
+      <input type="number" id="qs-descent-speed" step="1" min="0"
+             onchange="saveField('arm.descent_speed', parseFloat(this.value))">
+    </div>
+
+    <div class="field">
+      <label>Classifier Confidence Threshold</label>
+      <input type="number" id="qs-conf" step="0.05" min="0" max="1"
+             onchange="saveField('classifier.confidence_threshold', parseFloat(this.value))">
+    </div>
+
+    <div id="qs-status" class="status"></div>
+  </div>
+
+  <!-- Raw YAML Editor -->
+  <div class="yaml-editor">
+    <h2>Full Config (YAML)</h2>
+    <textarea id="yaml-text" spellcheck="false"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-save" onclick="saveYaml()">Save</button>
+      <button class="btn btn-reload" onclick="loadYaml()">Reload</button>
+      <span id="yaml-status" class="status"></span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function dot(obj, path) {
+  return path.split('.').reduce((o, k) => (o || {})[k], obj);
+}
+
+// Load config into quick-settings and YAML editor.
+async function loadYaml() {
+  const res = await fetch('/api/config');
+  const text = await res.text();
+  document.getElementById('yaml-text').value = text;
+
+  // Parse for quick-settings population.
+  // Simple approach: use a tiny YAML subset parser via the server.
+  try {
+    const jsonRes = await fetch('/api/config');
+    const yamlText = await jsonRes.text();
+    // We'll parse key values with regex for the quick settings.
+    populateQuickSettings(yamlText);
+  } catch(e) {}
+
+  showStatus('yaml-status', 'Loaded', 'ok');
+}
+
+function populateQuickSettings(yamlText) {
+  // Quick regex-based value extraction from YAML text.
+  function val(key) {
+    // Match "key: value" allowing nested indentation.
+    const parts = key.split('.');
+    const lastKey = parts[parts.length - 1];
+    const re = new RegExp('^\\s*' + lastKey + ':\\s*(.+?)\\s*(?:#.*)?$', 'm');
+    const m = yamlText.match(re);
+    return m ? m[1].replace(/['"]/g, '') : null;
+  }
+
+  setVal('qs-mock-mode', val('mock_mode'));
+  setVal('qs-shadow-mode', val('shadow_mode'));
+  setVal('qs-fruit-type', val('fruit_type'));
+  setInputVal('qs-belt-speed', val('speed_mm_per_sec'));
+  setInputVal('qs-arm-vel', val('max_velocity'));
+  setInputVal('qs-descent-speed', val('descent_speed'));
+  setInputVal('qs-conf', val('confidence_threshold'));
+}
+
+function setVal(id, v) { if (v !== null) document.getElementById(id).value = v; }
+function setInputVal(id, v) { if (v !== null) document.getElementById(id).value = v; }
+
+async function saveField(key, value) {
+  const res = await fetch('/api/config/field', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({key, value}),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    showStatus('qs-status', 'Saved ' + key, 'ok');
+    // Refresh the YAML editor to stay in sync.
+    const yamlRes = await fetch('/api/config');
+    document.getElementById('yaml-text').value = await yamlRes.text();
+  } else {
+    showStatus('qs-status', data.error || 'Error', 'err');
+  }
+}
+
+async function saveYaml() {
+  const body = document.getElementById('yaml-text').value;
+  const res = await fetch('/api/config', {
+    method: 'PUT',
+    headers: {'Content-Type': 'text/yaml'},
+    body: body,
+  });
+  const data = await res.json();
+  if (res.ok) {
+    showStatus('yaml-status', 'Saved', 'ok');
+    // Refresh quick settings to stay in sync.
+    populateQuickSettings(body);
+  } else {
+    showStatus('yaml-status', data.error || 'Error', 'err');
+  }
+}
+
+function showStatus(id, msg, cls) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'status ' + cls;
+  setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+// Load on page ready.
+loadYaml();
+</script>
+</body>
+</html>
