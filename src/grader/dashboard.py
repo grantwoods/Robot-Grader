@@ -20,12 +20,32 @@ from flask import Flask, Response, jsonify, render_template, request
 from grader.camera import CameraManager
 from grader.config import load_config
 
-_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "default.yaml"
 _CAMERA_NAMES = ("overhead", "arm_head", "bottom")
 
 
+def _find_config_path(config_dir: str | None = None) -> Path:
+    """Locate config/default.yaml — works whether run from the repo checkout
+    or from an installed package."""
+    if config_dir:
+        return Path(config_dir) / "default.yaml"
+    # Try relative to this source file (repo layout: src/grader/dashboard.py -> ../../config)
+    repo_config = Path(__file__).resolve().parents[2] / "config" / "default.yaml"
+    if repo_config.exists():
+        return repo_config
+    # Try current working directory
+    cwd_config = Path.cwd() / "config" / "default.yaml"
+    if cwd_config.exists():
+        return cwd_config
+    raise FileNotFoundError(
+        "Cannot find config/default.yaml. Run from the repo root or pass --config-dir."
+    )
+
+
 def create_app(config_dir: str | None = None) -> Flask:
-    cfg = load_config(config_dir=config_dir)
+    config_path = _find_config_path(config_dir)
+    config_dir_resolved = str(config_path.parent)
+
+    cfg = load_config(config_dir=config_dir_resolved)
     mock = cfg.get("system", {}).get("mock_mode", True)
 
     cam = CameraManager(cfg, mock_mode=mock)
@@ -71,7 +91,7 @@ def create_app(config_dir: str | None = None) -> Flask:
 
     @app.route("/api/config", methods=["GET"])
     def get_config():
-        with open(_CONFIG_PATH) as f:
+        with open(config_path) as f:
             raw = f.read()
         return Response(raw, mimetype="text/yaml")
 
@@ -86,7 +106,7 @@ def create_app(config_dir: str | None = None) -> Flask:
         if not isinstance(parsed, dict):
             return jsonify({"error": "Config must be a YAML mapping"}), 400
 
-        with open(_CONFIG_PATH, "w") as f:
+        with open(config_path, "w") as f:
             yaml.safe_dump(parsed, f, default_flow_style=False, sort_keys=False)
 
         return jsonify({"status": "saved"})
@@ -98,7 +118,7 @@ def create_app(config_dir: str | None = None) -> Flask:
         if not data or "key" not in data or "value" not in data:
             return jsonify({"error": "Need {key, value}"}), 400
 
-        with open(_CONFIG_PATH) as f:
+        with open(config_path) as f:
             cfg_data = yaml.safe_load(f)
 
         keys = data["key"].split(".")
@@ -109,7 +129,7 @@ def create_app(config_dir: str | None = None) -> Flask:
             target = target[k]
         target[keys[-1]] = data["value"]
 
-        with open(_CONFIG_PATH, "w") as f:
+        with open(config_path, "w") as f:
             yaml.safe_dump(cfg_data, f, default_flow_style=False, sort_keys=False)
 
         return jsonify({"status": "saved", "key": data["key"], "value": data["value"]})
